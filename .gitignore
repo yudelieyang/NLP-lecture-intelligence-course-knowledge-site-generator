@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# backup files
+*.bak
+*.tmp
+
+# WPS / Office temp files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+# optional: if generated slide images are too many/too large, uncomment this
+# nlp_lecture_notes_site/assets/slides/
