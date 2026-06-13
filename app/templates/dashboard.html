@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local Lecture Knowledge App</title>
+  <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow" data-i18n="headerEyebrow">本地优先控制台</p>
+      <h1 data-i18n="appTitle">Local Lecture Knowledge App</h1>
+      <p data-i18n="appSubtitle">从本地课程材料生成版本化学习知识站点。</p>
+    </div>
+    <div class="header-actions">
+      <label class="language-switch">
+        <span data-i18n="uiLanguage">界面语言</span>
+        <select id="uiLanguage">
+          <option value="zh">中文</option>
+          <option value="en">English</option>
+        </select>
+      </label>
+      <button id="refreshBtn" data-i18n="refreshFiles">刷新文件列表</button>
+      <button id="openInputBtn" data-i18n="openInput">打开 input_materials 文件夹</button>
+    </div>
+  </header>
+
+  <main class="dashboard-grid">
+    <section class="panel materials-panel">
+      <div class="panel-title">
+        <h2 data-i18n="inputMaterials">输入材料</h2>
+        <span id="materialsSummary" class="pill" data-i18n="checking">检查中...</span>
+      </div>
+      <p class="muted" data-i18n="materialsHelp">支持：.pdf、.md、.docx。路线图：.pptx、.ipynb。</p>
+      <div id="materialsEmpty" class="empty" hidden data-i18n="materialsEmpty">请把 PDF / MD / DOCX 文件放入 input_materials/ 文件夹，然后点击刷新。</div>
+      <div id="materialsTable"></div>
+      <div class="button-row">
+        <button id="createInputBtn" data-i18n="createInput">创建 input_materials 文件夹</button>
+      </div>
+    </section>
+
+    <section class="panel settings-panel">
+      <h2 data-i18n="projectSettings">项目设置</h2>
+      <label><span data-i18n="projectName">项目名称</span><input id="projectName" placeholder="EC508 NLP"></label>
+      <label><span data-i18n="minContentChars">最小文本长度</span><input id="minContentChars" type="number" min="0" value="3000"></label>
+      <label><span data-i18n="contentLanguage">生成内容语言 / 界面快捷切换</span>
+        <select id="language"><option value="zh">zh</option><option value="en">en</option></select>
+      </label>
+      <label class="check"><input id="preserveEnglishTerms" type="checkbox" checked> <span data-i18n="preserveTerms">保留英文专业术语</span></label>
+      <fieldset class="generation-mode-field">
+        <legend data-i18n="generationMode">Generation Mode</legend>
+        <label class="check"><input name="generationMode" id="modeOffline" type="radio" value="offline" checked> <span>Offline Mode</span></label>
+        <p class="muted">No API key required. Files stay local. Builds source explorer, search, slide gallery, lecture map, cross-lecture links, and template practice.</p>
+        <label class="check"><input name="generationMode" id="modeOnlineLlm" type="radio" value="online_llm"> <span>Online LLM Mode</span></label>
+        <p class="muted">Requires API key and network connection. Source text may be sent to the configured LLM provider for Chinese summaries and advanced practice.</p>
+      </fieldset>
+    </section>
+
+    <section class="panel llm-panel" id="llmPanel">
+      <h2 data-i18n="llmSettings">LLM 设置</h2>
+      <p class="warning" data-i18n="keyWarning">仅限本地浏览器界面使用。不要提交 key，不要把本应用暴露到公网。</p>
+      <label><span data-i18n="provider">Provider</span>
+        <select id="llmProvider">
+          <option value="openai_compatible">openai_compatible</option>
+          <option value="ollama">ollama</option>
+        </select>
+      </label>
+      <label><span data-i18n="endpoint">Endpoint</span><input id="llmEndpoint" placeholder="https://api.openai.com/v1 or http://localhost:11434"></label>
+      <label><span data-i18n="model">Model</span><input id="llmModel" placeholder="gpt-4.1-mini or llama3"></label>
+      <label><span data-i18n="apiKeyEnv">API key 环境变量名</span><input id="apiKeyEnv" value="OPENAI_API_KEY"></label>
+      <div class="button-row"><button id="testLlmBtn" data-i18n="testLlm">测试 LLM 连接</button></div>
+      <p id="llmModeHint" class="muted llm-mode-hint"></p>
+      <p class="muted" data-i18n="envHint">请优先在 .env 中配置真实 API key。网页不会显示 API key。</p>
+    </section>
+
+    <section class="panel generation-panel">
+      <h2 data-i18n="generate">生成</h2>
+      <p class="muted" data-i18n="generateHelp">每次生成都会创建新的 output_sites/&lt;run_id&gt;/，不会覆盖旧版本。</p>
+      <button id="generateBtn" class="primary" data-i18n="generateNew">生成新站点</button>
+      <div id="generationResult" class="result" hidden></div>
+    </section>
+
+    <section class="panel versions-panel">
+      <div class="panel-title">
+        <h2 data-i18n="versions">历史版本</h2>
+        <button id="refreshRunsBtn" data-i18n="refreshVersions">刷新版本</button>
+      </div>
+      <div id="runsList"></div>
+    </section>
+
+    <section class="panel logs-panel">
+      <h2 data-i18n="logs">状态 / 日志</h2>
+      <div id="statusBox" class="status" data-i18n="ready">就绪。</div>
+      <pre id="logs" data-i18n="noRun">还没有运行记录。</pre>
+    </section>
+  </main>
+
+  <script src="/static/dashboard.js?v=20260610-llm-ab1"></script>
+</body>
+</html>

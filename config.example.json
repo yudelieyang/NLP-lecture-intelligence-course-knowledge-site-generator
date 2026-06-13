@@ -1,0 +1,14 @@
+{
+  "projectName": "My Lecture Knowledge Site",
+  "inputDir": "input_materials",
+  "outputDir": "output_sites",
+  "templateDir": "templates",
+  "minContentChars": 300,
+  "llm": {
+    "provider": "none",
+    "baseUrl": "",
+    "model": "",
+    "apiKeyEnv": "OPENAI_API_KEY",
+    "temperature": 0.2
+  }
+}

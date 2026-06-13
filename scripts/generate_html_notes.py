@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import html
+import json
 import re
 import shutil
 from pathlib import Path
@@ -742,6 +743,30 @@ def page_ref(number: int, start: int, end: int | None = None, warning: bool = Fa
     return f'<span class="{classes}">Lecture {number}, {pages}{suffix}</span>'
 
 
+def page_ref_text(number: int, start: int, end: int | None = None) -> str:
+    pages = f"p.{start}" if not end or start == end else f"pp.{start}-{end}"
+    return f"Lecture {number}, {pages}"
+
+
+def slug(text: str, fallback: str) -> str:
+    value = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return value or fallback
+
+
+def plain_text(text: str) -> str:
+    return clean(re.sub(r"<[^>]+>", " ", html.unescape(text)))
+
+
+def snippet(text: str, size: int = 180) -> str:
+    value = plain_text(text)
+    return value if len(value) <= size else value[: size - 1].rstrip() + "…"
+
+
+def terms_for(text: str) -> list[str]:
+    corpus = text.lower()
+    return [term for term in TERM_TOOLTIPS if term.lower() in corpus]
+
+
 def highlight(text: str) -> str:
     escaped = esc(text)
     ordered = sorted(TERM_TOOLTIPS, key=len, reverse=True)
@@ -836,8 +861,9 @@ def build_example_card(number: int, item: dict, pages: list[str]) -> str:
     badge = "辅助类比，不是课件原文" if is_aux else "课件例子"
     classes = "example-card auxiliary-example" if is_aux else "example-card source-example"
     ref = "" if is_aux or "page" not in item else page_ref(number, item["page"])
+    example_id = f"lecture-{number}-example-{slug(item['title'], str(item.get('after', item.get('page', 0))))}"
     parts = [
-        f'<div class="{classes}">',
+        f'<div class="{classes}" id="{example_id}">',
         f'<div class="example-header"><span class="example-badge{" auxiliary" if is_aux else ""}">{badge}</span>{ref}</div>',
         f'<h4>{esc(item["title"])}</h4>',
         f'<p>{highlight(item["body"])}</p>',
@@ -886,7 +912,8 @@ def narrative(number: int, stages: list[tuple[int, int, str]], pages: list[str])
     blocks = []
     for start, end, text in stages:
         sparse = any(len(pages[i - 1]) < 80 for i in range(start, min(end, len(pages)) + 1))
-        blocks.append(f'<article class="story-step"><p>{highlight(text)} {page_ref(number, start, end, sparse)}</p>{examples_for_stage(number, start, end, pages)}</article>')
+        anchor = f"lecture-{number}-step-{start}-{end}"
+        blocks.append(f'<article class="story-step" id="{anchor}"><p>{highlight(text)} {page_ref(number, start, end, sparse)}</p>{examples_for_stage(number, start, end, pages)}</article>')
     return "".join(blocks)
 
 
@@ -931,10 +958,99 @@ def sidebar(files: list[Path]) -> str:
     return "".join(groups)
 
 
+def search_panel() -> str:
+    return """
+<div class="search-panel" role="search">
+  <label class="search-label" for="site-search">Search notes</label>
+  <input id="site-search" class="search-input" type="search" placeholder="Search attention, BERT, ASR..." autocomplete="off" spellcheck="false">
+  <div class="search-hint">支持中文、英文术语和轻量 fuzzy match。</div>
+  <div id="search-results" class="search-results" aria-live="polite"></div>
+</div>"""
+
+
 def overview() -> str:
     return """<section class="overview lecture-section" id="overview"><div class="eyebrow">Course Map</div><h1>课程总览：从文本预处理到语音智能</h1>
 <p>课程从原始文本的清洗、tokenization 和 language model 出发，先建立概率与向量表示。随后，监督学习和 neural network 解决分类问题；RNN、LSTM 和 GRU 进一步处理 sequence data。machine translation 暴露固定长度表示的瓶颈，attention 因此出现。Transformer 将 self-attention 提升为主体结构，BERT、GPT 和 T5 再通过 pretraining 与 fine-tuning 扩展到理解和生成任务。最后，课程把同一条技术路线推进到 audio processing 与 ASR。</p>
 <div class="pathway"><span>text preprocessing</span><span>language model</span><span>supervised ML</span><span>RNN</span><span>attention</span><span>Transformer</span><span>BERT</span><span>GPT / T5</span><span>audio / ASR</span></div></section>"""
+
+
+def practice_generator() -> str:
+    return """
+<section class="practice-generator" id="practice-generator" aria-labelledby="practice-title">
+  <div class="practice-header">
+    <div><div class="eyebrow">Exam Practice</div><h2 id="practice-title">备考题生成器 / Exam Practice Generator</h2></div>
+    <p>根据当前 lecture、关键词检索结果或自定义内容生成选择题、概念题和简答题。无 API key 时自动使用本地模板模式。</p>
+  </div>
+  <div class="practice-controls">
+    <label>题目来源
+      <select class="practice-source">
+        <option value="current-lecture">当前 Lecture</option>
+        <option value="search-context">搜索关键词相关内容</option>
+        <option value="custom-context">自定义内容</option>
+      </select>
+    </label>
+    <label>关键词
+      <input class="practice-keyword" type="text" placeholder="attention, BERT, ASR..." autocomplete="off">
+    </label>
+    <label>题型
+      <select class="practice-type">
+        <option value="mixed">Mixed</option>
+        <option value="mcq">Multiple-choice</option>
+        <option value="concept">Concept question</option>
+        <option value="short-answer">Short-answer</option>
+      </select>
+    </label>
+    <label>难度
+      <select class="practice-difficulty">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    </label>
+    <label>数量
+      <select class="practice-count">
+        <option value="3">3</option>
+        <option value="5" selected>5</option>
+        <option value="10">10</option>
+      </select>
+    </label>
+    <label>答案显示
+      <select class="practice-answer-mode">
+        <option value="hidden" selected>先隐藏答案</option>
+        <option value="visible">立即显示答案</option>
+      </select>
+    </label>
+  </div>
+  <textarea class="custom-practice-context" hidden placeholder="Paste custom context here..."></textarea>
+  <details class="llm-settings">
+    <summary>LLM Settings / 可选</summary>
+    <p class="llm-warning">LLM API 模式为可选功能。浏览器端保存 API key 存在暴露风险。公开部署时请使用后端代理。</p>
+    <div class="practice-controls llm-controls">
+      <label>模式
+        <select class="practice-mode">
+          <option value="local" selected>Local template mode</option>
+          <option value="api">OpenAI-compatible API mode</option>
+        </select>
+      </label>
+      <label>Endpoint URL
+        <input class="llm-endpoint" type="url" placeholder="https://api.example.com/v1/chat/completions">
+      </label>
+      <label>Model
+        <input class="llm-model" type="text" placeholder="model-name">
+      </label>
+      <label>API key
+        <input class="llm-api-key" type="password" placeholder="Stored only in this browser">
+      </label>
+    </div>
+  </details>
+  <div class="practice-actions">
+    <button class="generate-practice-btn" type="button">Generate Practice Questions</button>
+    <button class="reveal-all-answers-btn" type="button" disabled>Reveal all answers</button>
+    <button class="copy-questions-btn" type="button" disabled>Copy questions</button>
+  </div>
+  <div class="practice-status" aria-live="polite"></div>
+  <div class="practice-output" aria-live="polite"></div>
+</section>"""
 
 
 def build_html(files: list[Path], extracted: dict[int, list[str]], failed: list[tuple[str, str]]) -> str:
@@ -944,11 +1060,98 @@ def build_html(files: list[Path], extracted: dict[int, list[str]], failed: list[
 <html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>EC508 NLP Lecture Notes</title>
 <link rel="stylesheet" href="style.css"><script>window.MathJax={{tex:{{inlineMath:[['\\\\(','\\\\)']],displayMath:[['\\\\[','\\\\]']]}},options:{{skipHtmlTags:['script','noscript','style','textarea','pre','code']}}}};</script>
 <script defer src="script.js"></script><script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script></head>
-<body><header class="mobile-header"><button id="menu-toggle" aria-label="展开目录" aria-expanded="false">目录</button><strong>EC508 NLP Notes</strong><button id="theme-toggle" aria-label="切换深色模式">主题</button></header>
-<aside class="sidebar" id="sidebar"><div class="brand"><p>EC508</p><h2>NLP Lecture Notes</h2><span>自然语言处理课程知识总结</span></div><nav>{sidebar(files)}</nav></aside>
-<main><header class="hero" id="top"><div class="eyebrow">EC508 · PDF-grounded Knowledge Base</div><h1>EC508 NLP Lecture Notes</h1><p>基于原始 Lecture PDF 逐页提取的中文知识总结</p><div class="hero-meta"><span>{len(files)} 份课件</span><span>page reference</span><span>原始 slide 图像</span></div></header>{overview()}{lectures}
+<body><a class="skip-link" href="#top">跳到正文</a><header class="mobile-header"><button id="menu-toggle" aria-label="展开目录" aria-expanded="false">目录</button><strong>EC508 NLP Notes</strong><button id="theme-toggle" aria-label="切换深色模式">主题</button></header>
+<aside class="sidebar" id="sidebar"><div class="brand"><p>EC508</p><h2>NLP Lecture Notes</h2><span>自然语言处理课程知识总结</span></div>{search_panel()}<nav>{sidebar(files)}</nav></aside>
+<main><header class="hero" id="top"><div class="eyebrow">EC508 · PDF-grounded Knowledge Base</div><h1>EC508 NLP Lecture Notes</h1><p>基于原始 Lecture PDF 逐页提取的中文知识总结</p><div class="hero-meta"><span>{len(files)} 份课件</span><span>page reference</span><span>原始 slide 图像</span></div></header>{overview()}{lectures}{practice_generator()}
 <section class="lecture-section" id="unprocessed"><div class="eyebrow">Appendix</div><h1>未能处理的文件</h1>{failures}</section></main>
 <button id="back-to-top" aria-label="返回顶部">↑</button><div class="lightbox" id="slide-lightbox" aria-hidden="true"><button type="button" aria-label="关闭">×</button><img alt=""><p></p></div></body></html>"""
+
+
+def add_search_record(records: list[dict], *, ident: str, lecture_id: str, lecture_title: str, section_title: str, text: str, page_refs: list[str] | None = None) -> None:
+    value = plain_text(text)
+    if not value:
+        return
+    records.append({
+        "id": ident,
+        "lectureId": lecture_id,
+        "lectureTitle": lecture_title,
+        "sectionTitle": section_title,
+        "text": value,
+        "snippet": snippet(value),
+        "pageRefs": page_refs or [],
+        "terms": terms_for(value + " " + lecture_title + " " + section_title),
+    })
+
+
+def build_search_index(files: list[Path], extracted: dict[int, list[str]]) -> list[dict]:
+    records: list[dict] = []
+    overview_text = "课程从 text preprocessing、language model、supervised ML、RNN、attention、Transformer、BERT、GPT、T5、audio processing 和 ASR 逐步展开。"
+    add_search_record(
+        records,
+        ident="overview",
+        lecture_id="overview",
+        lecture_title="课程总览",
+        section_title="课程总览",
+        text=overview_text,
+    )
+    for path in files:
+        number = lecture_number(path)
+        if number not in extracted:
+            continue
+        zh_title, en_title, stages = LECTURES[number]
+        lecture_id = f"lecture-{number}"
+        lecture_title = f"Lecture {number:02d} -- {en_title}"
+        add_search_record(
+            records,
+            ident=lecture_id,
+            lecture_id=lecture_id,
+            lecture_title=lecture_title,
+            section_title=f"Lecture {number}: {zh_title}",
+            text=f"{zh_title} {en_title} {path.name}",
+        )
+        for key, section_title in [("intro", "本讲引入"), ("background", "问题背景")]:
+            entries = INTRO_BACKGROUND[number][key]
+            text = " ".join(item[2] for item in entries)
+            refs = [page_ref_text(number, start, end) for start, end, _ in entries]
+            add_search_record(records, ident=f"lecture-{number}-{key}", lecture_id=lecture_id, lecture_title=lecture_title, section_title=section_title, text=text, page_refs=refs)
+        for start, end, text in stages:
+            add_search_record(
+                records,
+                ident=f"lecture-{number}-step-{start}-{end}",
+                lecture_id=lecture_id,
+                lecture_title=lecture_title,
+                section_title="逐步叙事笔记",
+                text=text,
+                page_refs=[page_ref_text(number, start, end)],
+            )
+        for item in EXAMPLES.get(number, []):
+            example_id = f"lecture-{number}-example-{slug(item['title'], str(item.get('after', item.get('page', 0))))}"
+            refs = [page_ref_text(number, item["page"])] if item.get("page") else []
+            table_text = ""
+            if item.get("table"):
+                table_text = " ".join(item["table"]["headers"] + [str(cell) for row in item["table"]["rows"] for cell in row])
+            code_text = ""
+            if item.get("code"):
+                code_text = item["code"].get("output", "")
+            add_search_record(
+                records,
+                ident=example_id,
+                lecture_id=lecture_id,
+                lecture_title=lecture_title,
+                section_title=item["title"],
+                text=" ".join([item["title"], item["body"], table_text, code_text]),
+                page_refs=refs,
+            )
+        if FORMULAS.get(number):
+            for page, latex, note in FORMULAS[number]:
+                add_search_record(records, ident=f"lecture-{number}-math", lecture_id=lecture_id, lecture_title=lecture_title, section_title="数学公式与模型机制", text=f"{note} {latex}", page_refs=[page_ref_text(number, page)])
+        add_search_record(records, ident=f"lecture-{number}-applications", lecture_id=lecture_id, lecture_title=lecture_title, section_title="现实应用", text=APPS[number], page_refs=[page_ref_text(number, stages[-1][0], stages[-1][1])])
+        add_search_record(records, ident=f"lecture-{number}-terms", lecture_id=lecture_id, lecture_title=lecture_title, section_title="术语表", text=" ".join(term for term in TERM_TOOLTIPS if term.lower() in " ".join(stage[2] for stage in stages).lower()))
+        pages = extracted[number]
+        for page_number in SLIDE_SELECTION.get(number, []):
+            if page_number <= len(pages):
+                add_search_record(records, ident=f"lecture-{number}-slides", lecture_id=lecture_id, lecture_title=lecture_title, section_title="原始课件页面展示", text=slide_title(pages[page_number - 1]), page_refs=[page_ref_text(number, page_number)])
+    return records
 
 
 def main() -> int:
@@ -971,7 +1174,9 @@ def main() -> int:
             print(f"读取失败：{path.name}（{exc}）")
     SITE.mkdir(exist_ok=True)
     (SITE / "index.html").write_text(build_html(files, extracted, failed), encoding="utf-8")
+    (SITE / "search-index.json").write_text(json.dumps(build_search_index(files, extracted), ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"已生成：{SITE / 'index.html'}")
+    print(f"search index：{SITE / 'search-index.json'}")
     print(f"slide images：{len(list(SLIDES.glob('*.png')))}")
     print(f"未能处理：{len(failed)}")
     return 0

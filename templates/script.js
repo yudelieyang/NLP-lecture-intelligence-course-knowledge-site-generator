@@ -1,6 +1,8 @@
 const sidebar = document.getElementById("sidebar");
 const menu = document.getElementById("menu-toggle");
 const theme = document.getElementById("theme-toggle");
+const mobileTheme = document.getElementById("theme-toggle-mobile");
+const siteLanguage = document.getElementById("site-ui-language");
 const topButton = document.getElementById("back-to-top");
 const main = document.querySelector("main");
 const pageSections = [...main.querySelectorAll(":scope > .lecture-section")];
@@ -9,8 +11,189 @@ const pageIds = pages.map((page) => page.id);
 const lecturePages = pages.filter((page) => page.id.startsWith("lecture-"));
 const navLinks = [...document.querySelectorAll(".sidebar a[href^='#']")];
 const lectureLinks = [...document.querySelectorAll(".nav-lecture")];
+const siteGenerationMode = document.body.dataset.generationMode || "offline";
 
 pageSections.forEach((page) => page.classList.add("lecture-page"));
+
+const siteUiTranslations = {
+  zh: {
+    menu: "目录",
+    theme: "主题",
+    toggleTheme: "切换主题",
+    uiLanguage: "界面语言",
+    searchPlaceholder: "搜索笔记...",
+    overview: "课程总览",
+    failedFiles: "未能处理的文件",
+    practiceTitle: "备考题生成器",
+    practiceDesc: "Source-grounded Practice 严格基于资料；Creative Extension 可生成应用场景和系统设计题。",
+    questionSource: "题目来源",
+    keyword: "关键词",
+    questionType: "题型",
+    difficulty: "难度",
+    count: "数量",
+    answerDisplay: "答案显示",
+    generatePractice: "生成练习题",
+    revealAnswers: "显示全部答案",
+    copyQuestions: "复制题目",
+    practiceHint: "重复点击 Generate 会重新采样上下文，并尽量生成不同角度、不同术语和不同场景的问题。",
+  },
+  en: {
+    menu: "Menu",
+    theme: "Theme",
+    toggleTheme: "Toggle theme",
+    uiLanguage: "UI language",
+    searchPlaceholder: "Search notes...",
+    overview: "Overview",
+    failedFiles: "Failed files",
+    practiceTitle: "Exam Practice Generator",
+    practiceDesc: "Source-grounded Practice stays within the source; Creative Extension can generate application and system-design scenarios.",
+    questionSource: "Question source",
+    keyword: "Keyword",
+    questionType: "Question type",
+    difficulty: "Difficulty",
+    count: "Count",
+    answerDisplay: "Answer display",
+    generatePractice: "Generate Practice Questions",
+    revealAnswers: "Reveal all answers",
+    copyQuestions: "Copy questions",
+    practiceHint: "Click Generate repeatedly to resample context and vary angles, terms, and scenarios.",
+  },
+};
+
+Object.assign(siteUiTranslations.zh, {
+  practiceTypeHint: "选择具体题型时只生成该题型；Mixed 才会混合题型。",
+  "mode.generationMode": "生成模式",
+  "mode.offline": "本地离线模式",
+  "mode.onlineLlm": "联网 LLM 模式",
+  "mode.offlineDescription": "本站点未调用 LLM 生成。系统将原始学习资料整理为可搜索、可跳转、可追溯来源的讲义浏览器。",
+  "mode.onlineDescription": "本站点使用联网 LLM 生成。中文总结、增强术语解释和高级练习题可能调用了已配置的模型接口。",
+  "mode.availableOffline": "离线可用",
+  "mode.requiresLlm": "需要联网 LLM",
+  "mode.limitedOffline": "离线基础支持",
+  "mode.availableWithLlm": "LLM 模式可用",
+  "mode.featureMatrix": "功能可用性对照表",
+  "mode.currentGenerationMode": "当前生成模式",
+  "mode.privacyNote": "本地离线模式会将文件保留在本机；联网 LLM 模式可能会把选定的来源文本发送给已配置的模型服务商。",
+  "mode.fullyLocal": "完全本地",
+  "mode.dependsOnProvider": "取决于服务商",
+  "mode.feature": "功能",
+  "mode.cardSourceExplorer": "可搜索 Source Explorer",
+  "mode.cardSourceExplorerDesc": "浏览清洗后的原文摘录和来源引用。",
+  "mode.cardSlideGalleryDesc": "查看从 PDF 页面提取的图示、公式、表格和课件截图。",
+  "mode.cardChineseSummary": "基于来源文本和引用生成的结构化中文笔记。",
+  "mode.cardChineseSummaryRequiresDesc": "启用联网 LLM 模式后可生成中文结构化笔记。",
+  "mode.cardAdvancedPractice": "高级练习",
+  "mode.cardAdvancedPracticeDesc": "自由拓展、应用场景和更难的综合题可以使用已配置的模型。",
+  "mode.sourceExplorer": "Source Explorer",
+  "mode.sourceGroundedNotes": "Source-grounded Notes",
+  "mode.sourceExplorerNote": "本地离线模式显示清洗后的原文摘录和课件截图，不伪装成 AI 中文总结。",
+  "mode.sourceGroundedNote": "使用已上传资料和来源引用生成的 LLM 笔记。",
+  "mode.llmDisabledFallback": "LLM 未启用：当前显示清洗后的来源摘录，而不是生成式中文总结。",
+  "mode.practiceOfflineNote": "模板练习可离线使用。自由拓展、高难应用场景、高级代码填空和跨讲义综合需要联网 LLM 模式。",
+  "mode.practiceOnlineNote": "联网 LLM 模式：source-grounded 和 creative practice 可以使用已配置的模型。",
+  "features.pdfReading": "PDF / MD / DOCX 读取",
+  "features.versionedOutput": "版本化站点输出",
+  "features.sourceRefs": "来源引用",
+  "features.cleanedExcerpts": "清洗后的原文摘录",
+  "features.searchIndex": "搜索索引",
+  "features.slideFigures": "课件截图",
+  "features.slideGallery": "课件图片画廊",
+  "features.lectureMap": "智能讲义目录",
+  "features.crossLectureReferences": "跨讲义引用网络",
+  "features.basicGlossary": "基础术语表",
+  "features.enrichedGlossary": "增强术语解释",
+  "features.templatePractice": "模板练习题",
+  "features.chineseSummaries": "中文结构化总结",
+  "features.creativePractice": "自由拓展练习",
+  "features.applicationScenarios": "应用场景题",
+  "features.codeCloze": "代码填空题生成",
+  "features.crossLectureReasoning": "跨讲义综合推理",
+  "features.privacy": "隐私",
+  "sources.title": "来源",
+  "sources.count": "条来源",
+  "sources.expandHint": "点击查看来源引用",
+  "sources.generatedFrom": "来源文件",
+  "sources.page": "页",
+});
+
+Object.assign(siteUiTranslations.en, {
+  practiceTypeHint: "When a specific type is selected, only that type is generated; Mixed is the only multi-type mode.",
+  "mode.generationMode": "Generation Mode",
+  "mode.offline": "Offline Mode",
+  "mode.onlineLlm": "Online LLM Mode",
+  "mode.offlineDescription": "This site was generated without LLM calls. It organizes your source materials into a searchable lecture explorer.",
+  "mode.onlineDescription": "This site was generated with an online LLM. Chinese summaries, enriched glossary entries, and advanced practice questions may use the configured model provider.",
+  "mode.availableOffline": "Available offline",
+  "mode.requiresLlm": "Requires Online LLM",
+  "mode.limitedOffline": "Limited offline",
+  "mode.availableWithLlm": "Available with LLM",
+  "mode.featureMatrix": "Feature Availability Matrix",
+  "mode.currentGenerationMode": "Current generation mode",
+  "mode.privacyNote": "Offline Mode keeps files local. Online LLM Mode may send selected source text to the configured provider.",
+  "mode.fullyLocal": "Fully local",
+  "mode.dependsOnProvider": "Depends on provider",
+  "mode.feature": "Feature",
+  "mode.cardSourceExplorer": "Searchable Source Explorer",
+  "mode.cardSourceExplorerDesc": "Browse cleaned source excerpts with source references.",
+  "mode.cardSlideGalleryDesc": "View extracted diagrams, formulas, tables, and slide figures.",
+  "mode.cardChineseSummary": "Structured Chinese notes generated from source text and references.",
+  "mode.cardChineseSummaryRequiresDesc": "Enable Online LLM Mode to generate Chinese structured notes.",
+  "mode.cardAdvancedPractice": "Advanced Practice",
+  "mode.cardAdvancedPracticeDesc": "Creative extensions, application scenarios, and harder synthesis questions can use the configured model.",
+  "mode.sourceExplorer": "Source Explorer",
+  "mode.sourceGroundedNotes": "Source-grounded Notes",
+  "mode.sourceExplorerNote": "Offline Mode shows cleaned excerpts and slide figures instead of AI-written summaries.",
+  "mode.sourceGroundedNote": "Generated with LLM using uploaded source materials and source references.",
+  "mode.llmDisabledFallback": "LLM disabled: showing cleaned source excerpts instead of generated Chinese summaries.",
+  "mode.practiceOfflineNote": "Template-based practice is available offline. Creative Extension, hard application scenarios, advanced code cloze, and cross-lecture synthesis require Online LLM Mode.",
+  "mode.practiceOnlineNote": "Online LLM Mode: source-grounded and creative practice can use the configured model.",
+  "features.pdfReading": "PDF / MD / DOCX reading",
+  "features.versionedOutput": "Versioned output site",
+  "features.sourceRefs": "Source references",
+  "features.cleanedExcerpts": "Cleaned source excerpts",
+  "features.searchIndex": "Search index",
+  "features.slideFigures": "Slide figures",
+  "features.slideGallery": "Slide Figure Gallery",
+  "features.lectureMap": "Lecture Map",
+  "features.crossLectureReferences": "Cross-Lecture References",
+  "features.basicGlossary": "Basic glossary",
+  "features.enrichedGlossary": "Enriched glossary",
+  "features.templatePractice": "Template practice",
+  "features.chineseSummaries": "Chinese structured summaries",
+  "features.creativePractice": "Creative Extension Practice",
+  "features.applicationScenarios": "Application scenario questions",
+  "features.codeCloze": "Code cloze generation",
+  "features.crossLectureReasoning": "Cross-lecture reasoning",
+  "features.privacy": "Privacy",
+  "sources.title": "Sources",
+  "sources.count": "sources",
+  "sources.expandHint": "Click to view source references",
+  "sources.generatedFrom": "Generated from",
+  "sources.page": "Page",
+});
+
+let siteUiLanguage = localStorage.getItem("site-ui-language") || "zh";
+
+function siteT(key) {
+  return siteUiTranslations[siteUiLanguage]?.[key] || siteUiTranslations.en[key] || key;
+}
+
+function applySiteLanguage() {
+  document.documentElement.lang = siteUiLanguage === "zh" ? "zh-CN" : "en";
+  document.querySelectorAll("[data-site-i18n]").forEach((node) => {
+    node.textContent = siteT(node.dataset.siteI18n);
+  });
+  document.querySelectorAll("[data-site-i18n-placeholder]").forEach((node) => {
+    node.setAttribute("placeholder", siteT(node.dataset.siteI18nPlaceholder));
+  });
+  if (siteLanguage) siteLanguage.value = siteUiLanguage;
+}
+
+siteLanguage?.addEventListener("change", () => {
+  siteUiLanguage = siteLanguage.value;
+  localStorage.setItem("site-ui-language", siteUiLanguage);
+  applySiteLanguage();
+});
 
 function pageIdFromHash(hash = location.hash) {
   const targetId = hash.replace(/^#/, "");
@@ -78,12 +261,16 @@ menu?.addEventListener("click", () => {
   menu.setAttribute("aria-expanded", String(open));
 });
 
-theme?.addEventListener("click", () => {
+function toggleTheme() {
   document.body.classList.toggle("dark");
   localStorage.setItem("nlp-theme", document.body.classList.contains("dark") ? "dark" : "light");
-});
+}
+
+theme?.addEventListener("click", toggleTheme);
+mobileTheme?.addEventListener("click", toggleTheme);
 
 if (localStorage.getItem("nlp-theme") === "dark") document.body.classList.add("dark");
+applySiteLanguage();
 
 lectureLinks.forEach((link) => {
   link.addEventListener("click", (event) => {
@@ -99,6 +286,13 @@ lectureLinks.forEach((link) => {
 document.querySelector(".nav-overview")?.addEventListener("click", (event) => {
   event.preventDefault();
   showPage("overview");
+});
+
+document.querySelectorAll(".nav-page").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    showPage(link.hash.slice(1));
+  });
 });
 
 document.querySelectorAll(".nav-children a").forEach((link) => {
@@ -381,6 +575,9 @@ const copyQuestionsButton = practice?.querySelector(".copy-questions-btn");
 const llmEndpointInput = practice?.querySelector(".llm-endpoint");
 const llmModelInput = practice?.querySelector(".llm-model");
 const llmApiKeyInput = practice?.querySelector(".llm-api-key");
+const practiceTabs = [...(practice?.querySelectorAll(".practice-tab") || [])];
+const practiceExtensionNote = practice?.querySelector(".practice-extension-note");
+let practiceScope = practiceTabs.find((tab) => tab.classList.contains("active"))?.dataset.practiceModeTab || "source";
 let lastPracticeQuestions = [];
 const practiceState = {
   isGenerating: false,
@@ -421,9 +618,10 @@ function setPracticeStatus(message) {
 
 function getPracticeOptions() {
   return {
+    practiceScope,
     source: practiceSource?.value || "current-lecture",
     keyword: practiceKeyword?.value.trim() || searchInput?.value.trim() || "",
-    type: practiceType?.value || "mixed",
+    type: normalizeQuestionType(practiceType?.value || "mixed"),
     difficulty: practiceDifficulty?.value || "medium",
     count: Number(practiceCount?.value || 5),
     answerMode: practiceAnswerMode?.value || "hidden",
@@ -431,6 +629,62 @@ function getPracticeOptions() {
     seed: createGenerationSeed(),
     avoidRecent: true,
   };
+}
+
+function normalizeQuestionType(value) {
+  const map = {
+    mcq: "multiple-choice",
+    multipleChoice: "multiple-choice",
+    "multiple choice": "multiple-choice",
+    shortAnswer: "short-answer",
+    codeCloze: "code-cloze",
+    application: "application-scenario",
+    scenario: "application-scenario",
+  };
+  return map[value] || value || "mixed";
+}
+
+function allowedPracticeTypes(difficulty = "medium", requestedType = "mixed", scope = practiceScope) {
+  requestedType = normalizeQuestionType(requestedType);
+  const sourceTypes = difficulty === "hard"
+    ? ["multiple-choice", "multiple-choice", "concept", "short-answer", "short-answer", "code-cloze"]
+    : ["multiple-choice", "multiple-choice", "multiple-choice", "concept", "concept", "short-answer", "code-cloze"];
+  const creativeTypes = difficulty === "hard"
+    ? ["multiple-choice", "concept", "short-answer", "code-cloze", "application-scenario", "application-scenario", "application-scenario"]
+    : ["multiple-choice", "multiple-choice", "concept", "short-answer", "code-cloze", "application-scenario"];
+  const pool = scope === "creative" ? creativeTypes : sourceTypes;
+  if (requestedType === "mixed") return pool;
+  return [requestedType];
+}
+
+function updatePracticeScope(nextScope) {
+  practiceScope = nextScope === "creative" ? "creative" : "source";
+  practiceTabs.forEach((tab) => {
+    const active = tab.dataset.practiceModeTab === practiceScope;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", String(active));
+  });
+  if (practiceExtensionNote) practiceExtensionNote.hidden = practiceScope !== "creative";
+  updatePracticeTypeHint();
+}
+
+function updatePracticeTypeHint() {
+  const hint = practice?.querySelector(".practice-type-hint");
+  if (!hint || !practiceType) return;
+  const selected = normalizeQuestionType(practiceType.value);
+  if (selected === "mixed") {
+    hint.textContent = "Mixed 会混合生成多种题型。";
+  } else if (practiceScope === "source" && selected === "application-scenario") {
+    hint.textContent = "Source-grounded application scenarios will stay close to uploaded notes. For freer business scenarios, use Creative Extension Practice.";
+  } else {
+    hint.textContent = "当前将只生成该题型。";
+  }
+}
+
+function offlinePracticeRequiresLlm(options) {
+  if (siteGenerationMode === "online_llm") return false;
+  const type = normalizeQuestionType(options.type);
+  return options.practiceScope === "creative" || options.difficulty === "hard" || type === "application-scenario";
 }
 
 function setPracticeLoading(isLoading) {
@@ -743,7 +997,7 @@ function buildMcq(records, terms, difficulty, random, attempt) {
   const correct = inferTermExplanation(term, record);
   const { choices, answer } = buildMcqChoices(correct, term, difficulty, terms, random);
   return {
-    type: "mcq",
+    type: "multiple-choice",
     difficulty,
     question: `${fillTemplate(template, term)}（角度：${angle}）`,
     choices,
@@ -1197,13 +1451,10 @@ function buildApplicationScenarioQuestion(records, terms, difficulty, random, at
   };
 }
 
-function buildRandomQuestion(records, terms, difficulty, requestedType, random, attempt) {
-  const mixedTypes = difficulty === "hard"
-    ? ["mcq", "mcq", "concept", "short-answer", "code-cloze", "application-scenario", "application-scenario", "application-scenario"]
-    : ["mcq", "mcq", "mcq", "concept", "concept", "short-answer", "short-answer", "code-cloze", "application-scenario"];
-  const types = requestedType === "mixed" ? mixedTypes : [requestedType];
+function buildRandomQuestion(records, terms, difficulty, requestedType, random, attempt, options = {}) {
+  const types = allowedPracticeTypes(difficulty, requestedType, options.practiceScope || practiceScope);
   const type = pickRandom(types, random) || "concept";
-  if (type === "mcq") return buildMcq(records, terms, difficulty, random, attempt);
+  if (type === "multiple-choice") return buildMcq(records, terms, difficulty, random, attempt);
   if (type === "short-answer") return buildShortAnswer(records, terms, difficulty, random, attempt);
   if (type === "code-cloze") return buildCodeClozeQuestion(records, terms, difficulty, random, attempt);
   if (type === "application-scenario") return buildApplicationScenarioQuestion(records, terms, difficulty, random, attempt);
@@ -1214,7 +1465,7 @@ function generateQuestionsLocal(records, options) {
   if (!records.length) return [];
   const random = seededRandom(options.seed || createGenerationSeed());
   const difficulty = options.difficulty || "medium";
-  const requestedType = options.type || "mixed";
+  const requestedType = normalizeQuestionType(options.type || "mixed");
   const targetCount = Math.max(1, Math.min(10, Number(options.count || 5)));
   const sampledRecords = sampleContextItems(records, targetCount, random);
   const terms = collectTerms(sampledRecords, random);
@@ -1223,13 +1474,13 @@ function generateQuestionsLocal(records, options) {
   const seen = new Set();
   const seenScenarios = new Set();
   const maxAttempts = targetCount * 20;
-  const mixedCycle = requestedType === "mixed" ? shuffleArray(["mcq", "concept", "short-answer", "code-cloze", "application-scenario"], random) : [];
+  const mixedCycle = requestedType === "mixed" ? shuffleArray(allowedPracticeTypes(difficulty, "mixed", options.practiceScope), random) : [];
   let attempts = 0;
 
   while (questions.length < targetCount && attempts < maxAttempts) {
     attempts += 1;
-    const plannedType = mixedCycle[questions.length] || requestedType;
-    const question = buildRandomQuestion(sampledRecords, usableTerms, difficulty, plannedType, random, attempts);
+    const plannedType = requestedType === "mixed" ? (mixedCycle[questions.length] || "concept") : requestedType;
+    const question = buildRandomQuestion(sampledRecords, usableTerms, difficulty, plannedType, random, attempts, options);
     const signature = questionSignature(question);
     const scenarioSig = scenarioSignature(question);
     if (!question || seen.has(signature) || (options.avoidRecent && isRecentlyUsed(question))) continue;
@@ -1241,8 +1492,8 @@ function generateQuestionsLocal(records, options) {
 
   while (questions.length < targetCount && attempts < maxAttempts * 2) {
     attempts += 1;
-    const plannedType = mixedCycle[questions.length] || requestedType;
-    const question = buildRandomQuestion(sampledRecords, usableTerms, difficulty, plannedType, random, attempts);
+    const plannedType = requestedType === "mixed" ? (mixedCycle[questions.length] || "concept") : requestedType;
+    const question = buildRandomQuestion(sampledRecords, usableTerms, difficulty, plannedType, random, attempts, options);
     const signature = questionSignature(question);
     const scenarioSig = scenarioSignature(question);
     if (!question || seen.has(signature)) continue;
@@ -1254,7 +1505,7 @@ function generateQuestionsLocal(records, options) {
 
   if (!questions.length) {
     questions.push({
-      ...buildShortAnswer(sampledRecords, usableTerms, difficulty, random, 0),
+      ...buildRandomQuestion(sampledRecords, usableTerms, difficulty, requestedType === "mixed" ? "short-answer" : requestedType, random, 0, options),
       id: `local-${options.seed || Date.now()}-fallback`,
     });
   }
@@ -1263,10 +1514,16 @@ function generateQuestionsLocal(records, options) {
 
 function finalizePracticeQuestions(questions, records, options) {
   const targetCount = Math.max(1, Math.min(10, Number(options.count || 5)));
+  const selectedType = normalizeQuestionType(options.type || "mixed");
   const fresh = [];
   const seenQuestions = new Set();
   const seenScenarios = new Set();
   for (const question of questions || []) {
+    question.type = normalizeQuestionType(question.type);
+    if (selectedType !== "mixed" && question.type !== selectedType) {
+      console.warn("Question type mismatch:", question.type, "expected:", selectedType);
+      continue;
+    }
     const qSig = questionSignature(question);
     const sSig = scenarioSignature(question);
     if (!qSig || seenQuestions.has(qSig)) continue;
@@ -1277,8 +1534,10 @@ function finalizePracticeQuestions(questions, records, options) {
     if (fresh.length >= targetCount) break;
   }
   if (fresh.length < targetCount) {
-    const fallback = generateQuestionsLocal(records, { ...options, count: targetCount - fresh.length, seed: createGenerationSeed() });
+    const fallback = generateQuestionsLocal(records, { ...options, type: selectedType, count: targetCount - fresh.length, seed: createGenerationSeed() });
     fallback.forEach((question) => {
+      question.type = normalizeQuestionType(question.type);
+      if (selectedType !== "mixed" && question.type !== selectedType) return;
       const qSig = questionSignature(question);
       const sSig = scenarioSignature(question);
       if (!seenQuestions.has(qSig) && !(question.type === "application-scenario" && seenScenarios.has(sSig))) {
@@ -1287,6 +1546,9 @@ function finalizePracticeQuestions(questions, records, options) {
         fresh.push(question);
       }
     });
+  }
+  if (selectedType !== "mixed" && fresh.length < targetCount) {
+    setPracticeStatus(`Only generated ${fresh.length} ${selectedType} questions from current context.`);
   }
   return fresh.slice(0, targetCount);
 }
@@ -1317,11 +1579,11 @@ async function generateQuestionsWithLLM(records, options) {
     messages: [
       {
         role: "system",
-        content: "You generate exam practice questions for an NLP course based only on the provided notes context. Do not invent unsupported facts. Preserve English technical terms. Return valid JSON only. Supported types are mcq, concept, short-answer, code-cloze, and application-scenario. Some application-scenario questions should simulate real product or business requirements where stakeholders do not name the underlying technologies. For hard scenario questions, do not reveal technical terms in the scenario; introduce them in the answer and explanation. Do not repeat questions from recent history. Vary question angles, source sections, wording, distractors, code blanks, scenario subtypes, and source page refs when possible. If the same settings are used repeatedly, generate a fresh set of questions.",
+        content: "You generate exam practice questions for an NLP course. Preserve English technical terms. Return valid JSON only. Supported types are exactly: multiple-choice, concept, short-answer, code-cloze, application-scenario. If selectedQuestionType is not mixed, every generated question MUST have exactly that type and no other type. Only when selectedQuestionType is mixed may you generate multiple question types. If practiceScope is source, use only the provided notes context and keep application scenarios close to uploaded notes with source references. If practiceScope is creative, clearly treat application scenarios as Creative Extension inspired by the notes. Do not repeat questions from recent history.",
       },
       {
         role: "user",
-        content: `Context:\n${contextText(records).slice(0, 9000)}\n\nRecent questions to avoid:\n${practiceState.recentQuestionSignatures.slice(-20).join("\n") || "(none)"}\n\nRecent scenarios to avoid:\n${practiceState.recentScenarioSignatures.slice(-20).join("\n") || "(none)"}\n\nTask:\nGenerate ${options.count} questions.\nQuestion types: ${options.type}. If type is mixed, include a varied mix of mcq, concept, short-answer, code-cloze, and application-scenario when context supports them. Suggested mixed weights: mcq 30%, concept 20%, short-answer 20%, code-cloze 15%, application-scenario 15%; for hard difficulty, increase application-scenario frequency.\nDifficulty: ${options.difficulty}.\nUse different question angles such as definition, motivation, mechanism, limitation, comparison, application, formula, and example. For MCQ, randomize the correct answer position across A/B/C/D and make distractors plausible for the selected difficulty.\nCode cloze questions must use short Python snippets, preferably numpy or standard library, with one or two blanks and deterministic answers.\nApplication scenario questions must be realistic NLP/AI work scenarios. Easy can name the concept; medium should give a business scenario with partial clues; hard should sound like an abstract boss/client requirement and must not name the technical answer in the scenario. For hard application-scenario questions, write the scenario as if it comes from a non-technical boss, product manager, or client. Do not mention the target technical terms in the scenario itself. The answer explanation should identify the hidden technical requirements and map them to NLP/ML concepts from the context.\n\nJSON schema examples:\n{"questions":[\n{"type":"code-cloze","difficulty":"medium","question":"...","code":"import numpy as np\\n... ______ ...","blanks":[{"blank":"______","answer":"e / e.sum()","explanation":"..."}],"answer":"______ = e / e.sum()","explanation":"...","sourcePageRefs":["Inspired by Lecture 18, p.7"],"relatedTerms":["softmax","attention weights"]},\n{"type":"application-scenario","scenarioSubtype":"pipeline-design","subtype":"pipeline-design","difficulty":"hard","scenario":"Boss says: ...","question":"...","choices":null,"answer":"...","expectedAnswer":"...","suggestedPipeline":["ASR: ...","speaker diarization: ..."],"limitations":["noise","privacy"],"explanation":"...","sourcePageRefs":["Inspired by Lecture 23, pp.4-8"],"relatedTerms":["ASR","acoustic model","language model"]},\n{"type":"mcq","difficulty":"medium","question":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"...","sourcePageRefs":["Lecture 18, p.7"],"relatedTerms":["attention"]}\n]}`,
+        content: `Context:\n${contextText(records).slice(0, 9000)}\n\nRecent questions to avoid:\n${practiceState.recentQuestionSignatures.slice(-20).join("\n") || "(none)"}\n\nRecent scenarios to avoid:\n${practiceState.recentScenarioSignatures.slice(-20).join("\n") || "(none)"}\n\nTask:\nGenerate ${options.count} questions.\npracticeScope: ${options.practiceScope || "source"}.\nselectedQuestionType: ${normalizeQuestionType(options.type)}.\nIf selectedQuestionType is not "mixed", every generated question MUST have exactly this type: ${normalizeQuestionType(options.type)}. Do not generate any other question type. Only when selectedQuestionType = "mixed" may you generate multiple question types.\nDifficulty: ${options.difficulty}.\nUse different question angles such as definition, motivation, mechanism, limitation, comparison, application, formula, and example. For multiple-choice, randomize the correct answer position across A/B/C/D and make distractors plausible.\nCode cloze questions must use short Python snippets, preferably numpy or standard library, with one or two blanks and deterministic answers.\nApplication scenario questions in Source-grounded Practice must stay close to uploaded notes and include source references. Application scenario questions in Creative Extension may use realistic NLP/AI work scenarios.\n\nJSON schema examples:\n{"questions":[\n{"type":"code-cloze","difficulty":"medium","question":"...","code":"import numpy as np\\n... ______ ...","blanks":[{"blank":"______","answer":"e / e.sum()","explanation":"..."}],"answer":"______ = e / e.sum()","explanation":"...","sourcePageRefs":["Lecture 18, p.7"],"relatedTerms":["softmax","attention weights"]},\n{"type":"application-scenario","scenarioSubtype":"pipeline-design","subtype":"pipeline-design","difficulty":"hard","scenario":"Boss says: ...","question":"...","choices":null,"answer":"...","expectedAnswer":"...","suggestedPipeline":["ASR: ...","speaker diarization: ..."],"limitations":["noise","privacy"],"explanation":"Creative Extension inspired by Lecture 23, pp.4-8.","sourcePageRefs":["Creative Extension inspired by Lecture 23, pp.4-8"],"relatedTerms":["ASR","acoustic model","language model"]},\n{"type":"multiple-choice","difficulty":"medium","question":"...","choices":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"...","sourcePageRefs":["Lecture 18, p.7"],"relatedTerms":["attention"]}\n]}`,
       },
     ],
     temperature: 0.3,
@@ -1410,6 +1672,13 @@ async function handleGeneratePracticeQuestions(event) {
   renderPracticeLoading(generationId);
   const options = getPracticeOptions();
   console.debug("[practice] generate start", options);
+  if (offlinePracticeRequiresLlm(options)) {
+    renderPracticeEmpty("This question type requires Online LLM Mode.");
+    setPracticeStatus("This question type requires Online LLM Mode.");
+    practiceState.isGenerating = false;
+    setPracticeLoading(false);
+    return;
+  }
   setPracticeStatus("正在收集上下文...");
 
   try {
@@ -1467,6 +1736,17 @@ function bindPracticeGeneratorEvents() {
   if (practice.dataset.bound === "true") return;
   practice.dataset.bound = "true";
   loadLlmSettings();
+  updatePracticeScope(practiceScope);
+  practiceTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      updatePracticeScope(tab.dataset.practiceModeTab);
+      setPracticeStatus(
+        practiceScope === "creative"
+          ? "Creative Extension Practice：会生成应用场景题，内容是基于资料启发的拓展。"
+          : "Source-grounded Practice：只基于当前资料生成定义、机制、简答和代码填空题。"
+      );
+    });
+  });
   practiceSource?.addEventListener("change", () => {
     const custom = practiceSource.value === "custom-context";
     const keyword = practiceSource.value === "search-context";
@@ -1474,6 +1754,8 @@ function bindPracticeGeneratorEvents() {
     practiceKeyword.disabled = !keyword;
   });
   practiceSource?.dispatchEvent(new Event("change"));
+  practiceType?.addEventListener("change", updatePracticeTypeHint);
+  updatePracticeTypeHint();
   [practiceMode, llmEndpointInput, llmModelInput, llmApiKeyInput].forEach((input) => input?.addEventListener("change", saveLlmSettings));
   generatePracticeButton?.addEventListener("click", handleGeneratePracticeQuestions);
   practiceOutput?.addEventListener("click", (event) => {
@@ -1519,6 +1801,15 @@ function bindPracticeGeneratorEvents() {
 }
 
 bindPracticeGeneratorEvents();
+
+document.querySelectorAll(".gallery-filters button").forEach((button) => {
+  button.addEventListener("click", () => {
+    const filter = button.dataset.filter || "all";
+    document.querySelectorAll(".gallery-card").forEach((card) => {
+      card.hidden = filter !== "all" && card.dataset.galleryType !== filter;
+    });
+  });
+});
 
 const codeDemos = [
   {
